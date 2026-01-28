@@ -1,3 +1,4 @@
+// src/lib/schema.ts
 import type { EventItem, Globals } from "@/lib/events";
 import { formatEventCity, resolveTicketUrl } from "@/lib/events";
 
@@ -14,6 +15,17 @@ export function buildEventJsonLd(params: {
   const cityLine = formatEventCity(event);
   const venue = event.venue && event.venue !== "TBA" ? event.venue : "";
   const address = event.address ?? "";
+
+  // ✅ coverUrl puede ser:
+  // - https://... (Cloudinary) -> úsala tal cual
+  // - /media/... (relativa) -> prefix con siteUrl
+  // - undefined/"" -> no image
+  const rawCover = (event.coverUrl ?? "").trim();
+  const imageUrl = rawCover
+    ? rawCover.startsWith("http")
+      ? rawCover
+      : `${siteUrl}${rawCover}`
+    : undefined;
 
   return {
     "@context": "https://schema.org",
@@ -35,23 +47,23 @@ export function buildEventJsonLd(params: {
         addressRegion: event.state || undefined,
         addressCountry: event.country || "MX",
         streetAddress: address || undefined,
-      }
+      },
     },
-    image: event.cover ? [`${siteUrl}${event.cover}`] : undefined,
+    image: imageUrl ? [imageUrl] : undefined,
     description: event.description || `${event.title} — ${cityLine}.`,
     organizer: {
       "@type": "Organization",
       name: globals.brand,
-      url: siteUrl
+      url: siteUrl,
     },
     offers: ticketUrl
       ? {
           "@type": "Offer",
           url: ticketUrl,
           availability: "https://schema.org/InStock",
-          priceCurrency: "MXN"
+          priceCurrency: "MXN",
         }
       : undefined,
-    url
+    url,
   };
 }
