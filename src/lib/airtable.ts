@@ -279,7 +279,11 @@ function toAirtableFields(input: UpsertEventInput) {
   return fields;
 }
 
-function assertAttachmentIfProvided(input: UpsertEventInput, data: any, mode: "create" | "update") {
+function assertAttachmentIfProvided(
+  input: UpsertEventInput,
+  data: any,
+  mode: "create" | "update"
+) {
   if (!input.coverUrl) return; // only when truthy (non-empty)
   const arr = data?.fields?.[AIRTABLE_COVER_FIELD];
   const ok = Array.isArray(arr) && arr.length > 0;
@@ -323,7 +327,10 @@ export async function updateEventById(id: string, input: UpsertEventInput) {
   console.log("[Airtable updateEventById] id:", id);
   console.log("[Airtable updateEventById] coverUrl:", input.coverUrl);
   console.log("[Airtable updateEventById] coverFieldName:", AIRTABLE_COVER_FIELD);
-  console.log("[Airtable updateEventById] sending cover field?:", input.coverUrl !== undefined);
+  console.log(
+    "[Airtable updateEventById] sending cover field?:",
+    input.coverUrl !== undefined
+  );
 
   const data = await airtableFetchJson(`${baseUrl()}/${id}`, {
     method: "PATCH",
@@ -341,4 +348,30 @@ export async function updateEventById(id: string, input: UpsertEventInput) {
   const normalized = normalizeRecord(data);
   if (!normalized) throw new Error("Updated event could not be normalized");
   return normalized;
+}
+
+/**
+ * ✅ DELETE (hard delete)
+ * Uses Airtable DELETE /{table}/{recordId}
+ * Returns { id, deleted } when successful.
+ */
+export async function deleteEventById(id: string) {
+  const cleanId = (id || "").trim();
+  if (!cleanId) throw new Error("Missing record id");
+
+  const url = `${baseUrl()}/${cleanId}`;
+
+  const data = await airtableFetchJson(url, {
+    method: "DELETE",
+    headers: headers(),
+  });
+
+  // Airtable returns: { id: "rec...", deleted: true }
+  if (!data?.deleted) {
+    throw new Error(
+      `Airtable delete failed: ${(data && JSON.stringify(data)) || "(no body)"}`
+    );
+  }
+
+  return { id: data.id as string, deleted: true as const };
 }

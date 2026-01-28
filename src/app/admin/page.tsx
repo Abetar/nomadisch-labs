@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   adminCreateEventAction,
+  adminDeleteEventAction,
   adminListEventsAction,
   adminUpdateEventAction,
   type AdminEventPayload,
@@ -36,7 +37,6 @@ function toDatetimeLocal(iso?: string) {
   )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
@@ -45,7 +45,8 @@ async function uploadToCloudinary(
   onProgress?: (pct: number) => void
 ): Promise<string> {
   if (!CLOUD_NAME) throw new Error("Missing NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
-  if (!UPLOAD_PRESET) throw new Error("Missing NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
+  if (!UPLOAD_PRESET)
+    throw new Error("Missing NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
 
@@ -63,9 +64,6 @@ async function uploadToCloudinary(
       try {
         const status = xhr.status;
         const json = JSON.parse(xhr.responseText || "{}");
-
-        // console.log("[CLOUDINARY] status:", status);
-        // console.log("[CLOUDINARY] response:", json);
 
         if (status >= 200 && status < 300 && json.secure_url) {
           resolve(json.secure_url as string);
@@ -93,7 +91,6 @@ async function uploadToCloudinary(
     xhr.send(fd);
   });
 }
-
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -179,10 +176,6 @@ export default function AdminPage() {
   function buildPayload(mode: "create" | "update"): AdminEventPayload {
     const cover = (coverUrlRef.current || "").trim();
 
-    // console.log("[CLIENT SUBMIT] mode:", mode);
-    // console.log("[CLIENT SUBMIT] coverTouched:", coverTouched);
-    // console.log("[CLIENT SUBMIT] coverUrlRef:", JSON.stringify(cover));
-
     const payload: AdminEventPayload = {
       password,
       id: mode === "update" ? form.id : undefined,
@@ -214,7 +207,6 @@ export default function AdminPage() {
       if (coverTouched) payload.coverUrl = cover; // "" or url
     }
 
-    // console.log("[CLIENT SUBMIT] payload.coverUrl:", payload.coverUrl);
     return payload;
   }
 
@@ -240,11 +232,55 @@ export default function AdminPage() {
     });
   }
 
-  async function handleFileUpload(file: File) {
-    // ✅ PRUEBA 1: confirmar que se dispara el handler
-    // console.log("[HANDLE FILE UPLOAD] FIRED", file?.name, file?.type, file?.size);
-    // alert("handleFileUpload FIRED: " + file?.name);
+  async function handleDelete() {
+    setError(null);
 
+    try {
+      if (!password) throw new Error("Missing admin password");
+      if (!form.id) throw new Error("No event selected");
+
+      const ok = window.confirm(
+        `Delete this event permanently?\n\n${form.title || form.slug || form.id}`
+      );
+      if (!ok) return;
+
+      startTransition(async () => {
+        try {
+          await adminDeleteEventAction({ password, id: form.id });
+
+          // Reset selection/UI
+          setSelectedId(null);
+          coverUrlRef.current = "";
+          setCoverTouched(false);
+          setSelectedCoverName("");
+          setForm({
+            id: "",
+            slug: "",
+            title: "",
+            status: "past",
+            dateStart: "",
+            dateEnd: "",
+            city: "",
+            state: "",
+            country: "MX",
+            venue: "",
+            address: "",
+            ticketUrl: "",
+            instagramPostUrl: "",
+            description: "",
+          });
+
+          load();
+        } catch (e: any) {
+          setError(e?.message || "Error deleting event");
+        }
+      });
+    } catch (e: any) {
+      setError(e?.message || "Error deleting event");
+    }
+  }
+
+  async function handleFileUpload(file: File) {
     setError(null);
 
     if (!file.type.startsWith("image/")) {
@@ -262,23 +298,7 @@ export default function AdminPage() {
     try {
       setSelectedCoverName(file.name);
 
-      // ✅ PRUEBA 2: verificar envs en cliente (si esto falla, cae al catch)
-      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-      const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-      // console.log("[ENV CHECK] cloudName:", cloudName);
-      // console.log("[ENV CHECK] preset:", preset);
-      // alert(`ENV CHECK\ncloudName=${cloudName}\npreset=${preset}`);
-
-      // ✅ PRUEBA 3: confirmar si se cuelga en el await
-      // console.log("[UPLOAD] before uploadToCloudinary");
-      // alert("before uploadToCloudinary");
-
       const url = await uploadToCloudinary(file, setUploadProgress);
-
-      // console.log("[UPLOAD] after uploadToCloudinary", url);
-      // alert("after uploadToCloudinary: " + url);
-
-      // console.log("[CLIENT UPLOAD] GOT URL:", url);
 
       coverUrlRef.current = url;
       setCoverTouched(true);
@@ -286,8 +306,6 @@ export default function AdminPage() {
       // reset input so you can upload same file again if needed
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (e: any) {
-      // console.log("[UPLOAD] catch error:", e);
-      // alert("UPLOAD FAILED: " + (e?.message || String(e)));
       setError(e?.message || "Image upload failed");
     } finally {
       setIsUploading(false);
@@ -529,7 +547,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            {/* ACTIONS */}
+            <div className="grid gap-3 md:grid-cols-3">
               <button
                 onClick={() => submit("create")}
                 disabled={!password || isPending || isUploading}
@@ -544,6 +563,15 @@ export default function AdminPage() {
                 className="rounded-2xl border border-white/25 px-4 py-3 text-sm font-extrabold tracking-[0.18em] text-white/85 disabled:opacity-50"
               >
                 UPDATE
+              </button>
+
+              <button
+                onClick={handleDelete}
+                disabled={!password || !form.id || isPending || isUploading}
+                className="rounded-2xl border border-red-500/35 px-4 py-3 text-sm font-extrabold tracking-[0.18em] text-red-200 hover:border-red-400/60 hover:text-red-100 disabled:opacity-50"
+                title="Delete event"
+              >
+                DELETE
               </button>
             </div>
 

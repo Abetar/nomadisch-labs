@@ -6,6 +6,7 @@ import {
   createEvent,
   listEvents,
   updateEventById,
+  deleteEventById, // ✅ NEW
   type UpsertEventInput,
   type EventStatus,
 } from "@/lib/airtable";
@@ -135,4 +136,29 @@ export async function adminUpdateEventAction(payload: AdminEventPayload) {
   revalidatePath(`/events/${updated.slug}`);
 
   return updated;
+}
+
+/**
+ * ✅ DELETE (hard delete)
+ * Recibe también slug opcional para revalidar la página del evento si existía.
+ */
+export async function adminDeleteEventAction(params: {
+  password: string;
+  id: string;
+  slug?: string;
+}) {
+  requireAdmin(params.password);
+
+  const id = cleanStr(params.id).trim();
+  if (!id) throw new Error("Missing record id");
+
+  console.log("[ADMIN DELETE] id:", id);
+
+  await deleteEventById(id);
+
+  revalidatePath("/");
+  revalidatePath("/events");
+  if (params.slug) revalidatePath(`/events/${params.slug}`);
+
+  return { ok: true };
 }
