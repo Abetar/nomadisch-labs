@@ -49,7 +49,7 @@ export function buildEventJsonLd(params: {
         streetAddress: address || undefined,
       },
     },
-    image: imageUrl ? [imageUrl] : undefined,
+    image: event.coverUrl ? [event.coverUrl] : undefined,
     description: event.description || `${event.title} — ${cityLine}.`,
     organizer: {
       "@type": "Organization",

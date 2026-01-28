@@ -1,5 +1,9 @@
 // src/lib/events.ts
-import { listEvents, type AirtableEvent, type EventStatus } from "@/lib/airtable";
+import {
+  listEvents,
+  type AirtableEvent,
+  type EventStatus,
+} from "@/lib/airtable";
 
 export type EventItem = {
   id: string;
@@ -21,15 +25,17 @@ export type EventItem = {
 };
 
 export type Globals = {
+  brand: string; // ✅ AÑADIR ESTO
   instagramUrl: string;
   ticketsCtaUrl?: string;
-  ticketsCtaText: string;
-  eventsCtaText: string;
+  ticketsCtaText?: string;
+  eventsCtaText?: string;
 };
 
 // ✅ fallback inmediato para que compile HOY.
 // Si luego quieres mover esto a Airtable “Globals” table o config, lo hacemos.
 const DEFAULT_GLOBALS: Globals = {
+  brand: "Nomadisch Labs",
   instagramUrl: "https://www.instagram.com/nomadischlabs/",
   ticketsCtaUrl: "",
   ticketsCtaText: "TICKETS",
@@ -50,7 +56,9 @@ export function formatEventDate(iso: string) {
   });
 }
 
-export function formatEventCity(e: Pick<EventItem, "city" | "state" | "country">) {
+export function formatEventCity(
+  e: Pick<EventItem, "city" | "state" | "country">,
+) {
   const parts = [e.city, e.state, e.country].filter(Boolean);
   return parts.join(", ");
 }
@@ -59,7 +67,9 @@ export function formatEventCity(e: Pick<EventItem, "city" | "state" | "country">
  * ✅ Mapea lo que viene de Airtable a tu EventItem esperado por la UI.
  * - lineup: intenta leerlo si existe en Airtable normalizado
  */
-export function toEventItemFromAirtable(a: AirtableEvent & { lineup?: any }): EventItem {
+export function toEventItemFromAirtable(
+  a: AirtableEvent & { lineup?: any },
+): EventItem {
   let lineup: string[] = [];
   const raw = (a as any)?.lineup;
 
@@ -99,7 +109,7 @@ export function toEventItemFromAirtable(a: AirtableEvent & { lineup?: any }): Ev
  */
 export function resolveTicketUrl(
   eventTicketUrl?: string,
-  fallbackGlobalUrl?: string
+  fallbackGlobalUrl?: string,
 ): string {
   const a = (eventTicketUrl || "").trim();
   if (a.startsWith("http")) return a;
@@ -141,7 +151,10 @@ function sortEventsForUI(events: EventItem[]) {
  * - Ahora trae events desde Airtable
  * - Retorna globals + events (compat con tu HomePage)
  */
-export async function getAllEvents(): Promise<{ globals: Globals; events: EventItem[] }> {
+export async function getAllEvents(): Promise<{
+  globals: Globals;
+  events: EventItem[];
+}> {
   const airtableEvents = await listEvents({ revalidateSeconds: 60 });
   const events = sortEventsForUI(airtableEvents.map(toEventItemFromAirtable));
 
@@ -155,13 +168,18 @@ export async function getAllEvents(): Promise<{ globals: Globals; events: EventI
  * ✅ Reemplaza tu getUpcomingEvent() anterior.
  * - Devuelve el evento upcoming más cercano.
  */
-export async function getUpcomingEvent(): Promise<{ upcoming: EventItem | null }> {
+export async function getUpcomingEvent(): Promise<{
+  upcoming: EventItem | null;
+}> {
   const airtableEvents = await listEvents({ revalidateSeconds: 60 });
   const events = airtableEvents.map(toEventItemFromAirtable);
 
   const upcomingSorted = events
     .filter((e) => e.status === "upcoming")
-    .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime(),
+    );
 
   return { upcoming: upcomingSorted[0] ?? null };
 }
