@@ -1,0 +1,28 @@
+{
+  "globals": {
+    "brand": "Nomadisch Labs",
+    "instagramUrl": "https://www.instagram.com/nomadischlabs/",
+    "ticketsCtaText": "COMPRAR BOLETOS",
+    "ticketsCtaUrl": "https://cambia-esto-cuando-haya-evento.com",
+    "eventsCtaText": "VER EVENTOS"
+  },
+  "events": [
+    {
+      "slug": "nomadisch-labs-x-kkinnessiss-qro-2024-09-07",
+      "title": "Nomadisch Labs x KKINNESSISS",
+      "status": "past",
+      "dateStart": "2024-09-07T22:00:00-06:00",
+      "dateEnd": "2024-09-08T04:00:00-06:00",
+      "city": "Querétaro",
+      "state": "QRO",
+      "country": "MX",
+      "venue": "TBA",
+      "address": "",
+      "ticketUrl": "",
+      "lineup": ["Nomadisch Labs", "KKINNESSISS"],
+      "cover": "/media/events/nomadischlabs-qro-2024-09-07.png",
+      "description": "Nomadisch Labs x KKINNESSISS — 07.09.24 — QRO, MX.",
+      "gallery": []
+    }
+  ]
+}

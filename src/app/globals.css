@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* ===========================
+   NOMADISCH: ALWAYS B/W
+   =========================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Force full B/W regardless of system theme */
+  --background: #000000;
+  --foreground: #ffffff;
+
+  /* Fake reactive intensity (idle by default) */
+  --reactive-intensity: 0.35;
 }
 
 @theme inline {
@@ -12,15 +20,115 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* We deliberately ignore prefers-color-scheme for this project */
+/* (Nomadisch is full B/W by design) */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ===========================
+   Nomadisch: grain (static + animated)
+   =========================== */
+
+.noise-mask {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+.noise-animate {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+  animation: noiseShift 7s steps(8) infinite;
+}
+
+@keyframes noiseShift {
+  0% { transform: translate3d(0,0,0); }
+  10% { transform: translate3d(-2%, 1%, 0); }
+  20% { transform: translate3d(-4%, -1%, 0); }
+  30% { transform: translate3d(2%, 3%, 0); }
+  40% { transform: translate3d(4%, 0%, 0); }
+  50% { transform: translate3d(-1%, -3%, 0); }
+  60% { transform: translate3d(-3%, 2%, 0); }
+  70% { transform: translate3d(1%, -2%, 0); }
+  80% { transform: translate3d(3%, 1%, 0); }
+  90% { transform: translate3d(-2%, -1%, 0); }
+  100% { transform: translate3d(0,0,0); }
+}
+
+.haze-drift {
+  animation: hazeDrift 18s ease-in-out infinite alternate;
+}
+@keyframes hazeDrift {
+  0% { transform: translate3d(-2%, -1%, 0) scale(1.02); }
+  100% { transform: translate3d(2%, 1%, 0) scale(1.06); }
+}
+
+/* If you keep any diagonal accent somewhere */
+.diagonal-slow {
+  animation: diag 14s linear infinite;
+}
+@keyframes diag {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(6%); }
+}
+
+/* ===========================
+   Fake Audio Reactive Background
+   =========================== */
+
+.energy-blob {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: calc(0.18 * var(--reactive-intensity));
+  animation: floatBlob 18s ease-in-out infinite;
+}
+
+.blob-1 {
+  top: -20%;
+  left: -10%;
+  background: rgba(255, 255, 255, 0.25);
+  animation-duration: calc(22s / var(--reactive-intensity));
+}
+
+.blob-2 {
+  bottom: -25%;
+  right: -10%;
+  background: rgba(255, 255, 255, 0.18);
+  animation-duration: calc(26s / var(--reactive-intensity));
+}
+
+.blob-3 {
+  top: 30%;
+  left: 40%;
+  background: rgba(255, 255, 255, 0.12);
+  animation-duration: calc(30s / var(--reactive-intensity));
+}
+
+@keyframes floatBlob {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  25%  { transform: translate3d(6%, -4%, 0) scale(1.05); }
+  50%  { transform: translate3d(-4%, 6%, 0) scale(1.1); }
+  75%  { transform: translate3d(4%, 2%, 0) scale(1.04); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ===========================
+   Reduced motion (respect it)
+   =========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .noise-animate,
+  .haze-drift,
+  .diagonal-slow,
+  .energy-blob {
+    animation: none !important;
+  }
 }
