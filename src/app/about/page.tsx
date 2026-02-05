@@ -15,7 +15,14 @@ export default async function AboutPage() {
 
   return (
     <>
-      <Navbar instagramUrl={globals.instagramUrl} />
+      <Navbar
+        instagramUrl={globals.instagramUrl}
+        logoSrc="/media/nomadisch-logo.png"
+        logoBoxWidth={64}
+        logoBoxHeight={64}
+        logoFit="cover"
+        logoPosition="center"
+      />
 
       <header className="mt-6 border border-white/12 rounded-3xl p-6 md:p-10">
         <div className="text-xs font-semibold tracking-[0.34em] text-white/55">

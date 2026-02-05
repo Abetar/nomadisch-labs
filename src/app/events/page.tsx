@@ -2,14 +2,16 @@ import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { listEvents, type AirtableEvent } from "@/lib/airtable";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://nomadischlabs.com";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://nomadischlabs.com";
 
 export const metadata = {
   title: "Events | Nomadisch Labs",
   description: "Nomadisch Labs events — upcoming drops and archived nights.",
   openGraph: {
     title: "Events | Nomadisch Labs",
-    description: "Upcoming drops and archived nights. No fixed city. No fixed lineup.",
+    description:
+      "Upcoming drops and archived nights. No fixed city. No fixed lineup.",
     url: `${SITE_URL}/events`,
     siteName: "Nomadisch Labs",
     type: "website",
@@ -21,7 +23,8 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Events | Nomadisch Labs",
-    description: "Upcoming drops and archived nights. No fixed city. No fixed lineup.",
+    description:
+      "Upcoming drops and archived nights. No fixed city. No fixed lineup.",
     images: [
       // `${SITE_URL}/og.jpg`,
     ],
@@ -48,7 +51,11 @@ function locationLine(e: AirtableEvent) {
 
 function StatusPill({ status }: { status: AirtableEvent["status"] }) {
   const label =
-    status === "upcoming" ? "UPCOMING" : status === "past" ? "PAST" : "CANCELLED";
+    status === "upcoming"
+      ? "UPCOMING"
+      : status === "past"
+        ? "PAST"
+        : "CANCELLED";
 
   return (
     <span className="rounded-full border border-white/20 px-3 py-1 text-[11px] font-bold tracking-[0.2em] text-white/75">
@@ -150,21 +157,46 @@ export default async function EventsPage() {
 
   const upcoming = events
     .filter((e) => e.status === "upcoming")
-    .sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime(),
+    );
 
   const past = events
     .filter((e) => e.status === "past")
-    .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime(),
+    );
 
   const cancelled = events
     .filter((e) => e.status === "cancelled")
-    .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime(),
+    );
 
   const instagramUrl = "https://www.instagram.com/nomadischlabs/";
 
+  async function getGlobals() {
+    return {
+      instagramUrl: "https://www.instagram.com/nomadischlabs/",
+      ticketsCtaText: "TICKETS",
+    };
+  }
+
+   const globals = await getGlobals();
+
   return (
     <>
-      <Navbar instagramUrl={instagramUrl} />
+      <Navbar
+        instagramUrl={globals.instagramUrl}
+        logoSrc="/media/nomadisch-logo.png"
+        logoBoxWidth={64}
+        logoBoxHeight={64}
+        logoFit="cover"
+        logoPosition="center"
+      />
 
       <main>
         {/* Header */}
