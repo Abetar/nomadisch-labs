@@ -20,9 +20,20 @@ export type AirtableEvent = {
   coverUrl?: string; // derived from attachment
 };
 
+export type AirtableGlobals = {
+  id: string;
+  ticketsCtaUrl?: string;
+  ticketsCtaText?: string;
+  instagramUrl?: string;
+};
+
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_EVENTS_TABLE = process.env.AIRTABLE_EVENTS_TABLE || "Events";
+
+// ✅ NEW (Globals table + single record)
+const AIRTABLE_GLOBALS_TABLE = process.env.AIRTABLE_GLOBALS_TABLE || "Globals";
+const AIRTABLE_GLOBALS_RECORD_ID = process.env.AIRTABLE_GLOBALS_RECORD_ID;
 
 /**
  * IMPORTANT:
@@ -40,6 +51,13 @@ function baseUrl() {
   assertEnv();
   return `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(
     AIRTABLE_EVENTS_TABLE
+  )}`;
+}
+
+function baseUrlGlobals() {
+  assertEnv();
+  return `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(
+    AIRTABLE_GLOBALS_TABLE
   )}`;
 }
 
@@ -90,6 +108,18 @@ function normalizeRecord(rec: any): AirtableEvent | null {
     description: f.description?.toString(),
     coverUrl,
   };
+}
+
+function normalizeGlobalsRecord(rec: any): AirtableGlobals | null {
+  const f = rec?.fields ?? {};
+  const id = (rec?.id ?? "").toString().trim();
+  if (!id) return null;
+
+  const ticketsCtaUrl = f.ticketsCtaUrl?.toString()?.trim() || undefined;
+  const ticketsCtaText = f.ticketsCtaText?.toString()?.trim() || undefined;
+  const instagramUrl = f.instagramUrl?.toString()?.trim() || undefined;
+
+  return { id, ticketsCtaUrl, ticketsCtaText, instagramUrl };
 }
 
 async function airtableFetchJson(url: string, init?: RequestInit) {
@@ -374,4 +404,76 @@ export async function deleteEventById(id: string) {
   }
 
   return { id: data.id as string, deleted: true as const };
+}
+
+/**
+ * ✅ GLOBALS (single-record settings)
+ * - Reads one known recordId from AIRTABLE_GLOBALS_RECORD_ID
+ * - If env missing, returns null (does NOT break site)
+ */
+export async function getGlobals(opts?: { revalidateSeconds?: number }) {
+  const revalidateSeconds = opts?.revalidateSeconds ?? 60;
+
+  if (!AIRTABLE_GLOBALS_RECORD_ID) {
+    console.warn("[Airtable getGlobals] Missing AIRTABLE_GLOBALS_RECORD_ID");
+    return null;
+  }
+
+  const url = `${baseUrlGlobals()}/${AIRTABLE_GLOBALS_RECORD_ID}`;
+
+  const data = await airtableFetchJson(url, {
+    headers: headers(),
+    next: { revalidate: revalidateSeconds },
+  });
+
+  return normalizeGlobalsRecord(data);
+}
+
+export type UpdateGlobalsInput = {
+  ticketsCtaUrl?: string; // "" allowed to clear
+  ticketsCtaText?: string;
+  instagramUrl?: string;
+};
+
+function toAirtableGlobalsFields(input: UpdateGlobalsInput) {
+  const fields: any = {};
+
+  if (input.ticketsCtaUrl !== undefined) {
+    const v = input.ticketsCtaUrl.toString().trim();
+    fields.ticketsCtaUrl = v ? v : ""; // allow clear
+  }
+  if (input.ticketsCtaText !== undefined) {
+    const v = input.ticketsCtaText.toString().trim();
+    fields.ticketsCtaText = v ? v : "";
+  }
+  if (input.instagramUrl !== undefined) {
+    const v = input.instagramUrl.toString().trim();
+    fields.instagramUrl = v ? v : "";
+  }
+
+  return fields;
+}
+
+export async function updateGlobalsById(input: UpdateGlobalsInput) {
+  if (!AIRTABLE_GLOBALS_RECORD_ID) {
+    throw new Error("Missing AIRTABLE_GLOBALS_RECORD_ID");
+  }
+
+  const payload = { fields: toAirtableGlobalsFields(input), typecast: true };
+
+  console.log("[Airtable updateGlobalsById] record:", AIRTABLE_GLOBALS_RECORD_ID);
+  console.log("[Airtable updateGlobalsById] fields keys:", Object.keys(payload.fields || {}));
+
+  const data = await airtableFetchJson(
+    `${baseUrlGlobals()}/${AIRTABLE_GLOBALS_RECORD_ID}`,
+    {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const normalized = normalizeGlobalsRecord(data);
+  if (!normalized) throw new Error("Updated globals could not be normalized");
+  return normalized;
 }

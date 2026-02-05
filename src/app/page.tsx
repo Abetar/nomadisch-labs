@@ -4,26 +4,18 @@ import { PosterCard } from "@/components/PosterCard";
 import { Navbar } from "@/components/Navbar";
 import { HeroVideo } from "@/components/HeroVideo";
 import { FloatingTicketCTA } from "@/components/FloatingTicketCTA";
-import { AboutNomadisch } from "@/components/AboutNomadisch";
-import { Partnerships } from "@/components/Partnerships";
+// ❌ remove AboutNomadisch from home
+// import { AboutNomadisch } from "@/components/AboutNomadisch";
 import { SocialMedia } from "@/components/SocialMedia";
 import { MerchSection } from "@/components/MerchSection";
 import { Gallery } from "@/components/Gallery";
 
-import { listEvents, type AirtableEvent } from "@/lib/airtable";
+import {
+  listEvents,
+  getGlobals as airtableGetGlobals,
+  type AirtableEvent,
+} from "@/lib/airtable";
 import type { EventItem } from "@/lib/events";
-import { resolveTicketUrl } from "@/lib/events";
-
-// ⚠️ Ajusta esto a lo que ya tengas en tu proyecto (como lo resolviste tú)
-// Si ya lo solucionaste, deja tu implementación actual.
-async function getGlobals() {
-  return {
-    instagramUrl: "https://www.instagram.com/nomadischlabs/",
-    ticketsCtaUrl: "",
-    ticketsCtaText: "TICKETS",
-    eventsCtaText: "VIEW ALL",
-  };
-}
 
 function toEventItem(e: AirtableEvent): EventItem {
   return {
@@ -46,30 +38,69 @@ function toEventItem(e: AirtableEvent): EventItem {
   };
 }
 
+function pickClosestUpcoming(events: EventItem[]) {
+  const now = Date.now();
+
+  const upcoming = events
+    .filter((e) => e.status === "upcoming")
+    .map((e) => ({ e, t: new Date(e.dateStart).getTime() }))
+    .filter((x) => Number.isFinite(x.t))
+    .sort((a, b) => a.t - b.t);
+
+  const future = upcoming.filter((x) => x.t >= now);
+  return future[0]?.e ?? upcoming[0]?.e ?? null;
+}
+
 export default async function HomePage() {
-  const globals = await getGlobals();
+  // Defaults (safe) + Airtable Globals (if configured)
+  const globalsRecord = await airtableGetGlobals({ revalidateSeconds: 60 });
+
+  const globals = {
+    instagramUrl:
+      globalsRecord?.instagramUrl || "https://www.instagram.com/nomadischlabs/",
+    ticketsCtaUrl: globalsRecord?.ticketsCtaUrl || "",
+    ticketsCtaText: globalsRecord?.ticketsCtaText || "TICKETS",
+    eventsCtaText: "VIEW ALL",
+  };
 
   const airtableEvents = await listEvents({ revalidateSeconds: 60 });
   const events = airtableEvents
     .map(toEventItem)
     // ✅ más reciente primero (por dateStart)
-    .sort((a, b) => new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.dateStart).getTime() - new Date(a.dateStart).getTime(),
+    );
 
-  const upcoming = events.find((e) => e.status === "upcoming") ?? null;
+  const closestUpcoming = pickClosestUpcoming(events);
 
-  const ticketUrl = resolveTicketUrl(upcoming?.ticketUrl, globals.ticketsCtaUrl);
+  // ✅ Priority: Globals URL -> closest upcoming event ticketUrl -> ""
+  const effectiveTicketsUrl =
+    (globals.ticketsCtaUrl || "").trim() ||
+    (closestUpcoming?.ticketUrl || "").trim() ||
+    "";
 
-  const floatingHref = ticketUrl || globals.instagramUrl;
-  const floatingLabel = ticketUrl ? "TICKETS" : "IG";
-
-  const primaryHref = ticketUrl || globals.instagramUrl;
-  const primaryLabel = ticketUrl ? globals.ticketsCtaText : "FOLLOW / DM (IG)";
+  const primaryHref = effectiveTicketsUrl || globals.instagramUrl;
+  const primaryLabel = effectiveTicketsUrl
+    ? globals.ticketsCtaText
+    : "FOLLOW / DM (IG)";
 
   return (
     <>
-      <Navbar instagramUrl={globals.instagramUrl} />
+      <Navbar
+        instagramUrl={globals.instagramUrl}
+        logoSrc="/media/nomadisch-logo.png"
+        logoBoxWidth={64}
+        logoBoxHeight={64}
+        logoFit="cover"
+        logoPosition="center"
+      />
 
-      <HeroVideo src="/media/hero.mp4" poster="/media/hero-poster.jpg" defaultMuted />
+      <HeroVideo
+        src="/media/hero.mp4"
+        poster="/media/hero-poster.jpg"
+        defaultMuted
+      />
 
       <header className="mt-6 border border-white/12 rounded-3xl p-6 md:p-10">
         <div className="text-xs font-semibold tracking-[0.34em] text-white/55">
@@ -104,13 +135,13 @@ export default async function HomePage() {
         </div>
 
         <div className="mt-8 border-t border-white/10 pt-6">
-          {upcoming ? (
+          {closestUpcoming ? (
             <div>
               <div className="text-xs font-semibold tracking-[0.24em] text-white/55">
                 NEXT EVENT
               </div>
               <div className="mt-2 text-2xl font-extrabold tracking-tight">
-                {upcoming.title}
+                {closestUpcoming.title}
               </div>
               <div className="mt-2 text-sm text-white/70">
                 Live now. Get tickets before it disappears.
@@ -132,8 +163,42 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <AboutNomadisch />
-      <Partnerships />
+      {/* ✅ About teaser + CTA (replaces AboutNomadisch on home) */}
+      <section className="mt-10 border border-white/12 rounded-3xl p-6 md:p-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="text-xs font-semibold tracking-[0.34em] text-white/55">
+              ABOUT
+            </div>
+            <h2 className="mt-3 text-2xl md:text-3xl font-extrabold tracking-tight [font-family:var(--font-display)]">
+              A NOMADIC DJ PROJECT.
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm md:text-base text-white/70 leading-relaxed">
+              Pop-ups, collabs and rotating locations — built to move. Learn what
+              Nomadisch is, how drops work, and where updates happen first.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/about"
+              className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-bold tracking-[0.18em] text-black"
+            >
+              ABOUT NOMADISCH →
+            </Link>
+
+            <Link
+              href={globals.instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-2xl border border-white/25 px-5 py-3 text-center text-sm font-bold tracking-[0.18em] text-white"
+            >
+              UPDATES ON IG
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <SocialMedia instagramUrl={globals.instagramUrl} />
       <MerchSection buyUrl={globals.instagramUrl} />
       <Gallery />
@@ -159,7 +224,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <FloatingTicketCTA href={floatingHref} label={floatingLabel} />
+      {/* ✅ Floating CTA only if we have a real tickets URL */}
+      {effectiveTicketsUrl ? (
+        <FloatingTicketCTA href={effectiveTicketsUrl} label="TICKETS" />
+      ) : null}
     </>
   );
 }

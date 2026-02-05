@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   adminCreateEventAction,
   adminDeleteEventAction,
+  adminGetGlobalsAction,
   adminListEventsAction,
   adminUpdateEventAction,
+  adminUpdateGlobalsAction,
   type AdminEventPayload,
 } from "@/app/admin/actions";
 
@@ -99,6 +101,13 @@ export default function AdminPage() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Site settings (Globals)
+  const [globalsForm, setGlobalsForm] = useState({
+    ticketsCtaUrl: "",
+    ticketsCtaText: "TICKETS",
+    instagramUrl: "",
+  });
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
@@ -161,7 +170,7 @@ export default function AdminPage() {
     });
   }, [selected]);
 
-  function load() {
+  function loadEvents() {
     setError(null);
     startTransition(async () => {
       try {
@@ -169,6 +178,43 @@ export default function AdminPage() {
         setRows(data as any);
       } catch (e: any) {
         setError(e?.message || "Error loading events");
+      }
+    });
+  }
+
+  function loadGlobals() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const data = await adminGetGlobalsAction(password);
+        setGlobalsForm({
+          ticketsCtaUrl: (data?.ticketsCtaUrl ?? "").toString(),
+          ticketsCtaText: (data?.ticketsCtaText ?? "TICKETS").toString(),
+          instagramUrl: (data?.instagramUrl ?? "").toString(),
+        });
+      } catch (e: any) {
+        setError(e?.message || "Error loading site settings");
+      }
+    });
+  }
+
+  function saveGlobals() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (!password) throw new Error("Missing admin password");
+
+        await adminUpdateGlobalsAction({
+          password,
+          ticketsCtaUrl: globalsForm.ticketsCtaUrl, // "" allowed (clear)
+          ticketsCtaText: globalsForm.ticketsCtaText,
+          instagramUrl: globalsForm.instagramUrl,
+        });
+
+        // reload to reflect normalized result
+        loadGlobals();
+      } catch (e: any) {
+        setError(e?.message || "Error saving site settings");
       }
     });
   }
@@ -225,7 +271,7 @@ export default function AdminPage() {
           await adminUpdateEventAction(payload);
         }
 
-        load();
+        loadEvents();
       } catch (e: any) {
         setError(e?.message || "Error saving event");
       }
@@ -270,7 +316,7 @@ export default function AdminPage() {
             description: "",
           });
 
-          load();
+          loadEvents();
         } catch (e: any) {
           setError(e?.message || "Error deleting event");
         }
@@ -335,11 +381,14 @@ export default function AdminPage() {
           />
 
           <button
-            onClick={load}
+            onClick={() => {
+              loadEvents();
+              loadGlobals();
+            }}
             disabled={!password || isPending}
             className="rounded-2xl bg-white px-4 py-3 text-sm font-extrabold tracking-[0.18em] text-black disabled:opacity-50"
           >
-            LOAD EVENTS
+            LOAD (EVENTS + SETTINGS)
           </button>
 
           <button
@@ -370,6 +419,59 @@ export default function AdminPage() {
           >
             NEW EVENT
           </button>
+        </div>
+
+        {/* ✅ Site Settings */}
+        <div className="mt-6 rounded-3xl border border-white/12 p-5">
+          <div className="text-xs font-bold tracking-[0.28em] text-white/55">
+            SITE SETTINGS
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <input
+              value={globalsForm.ticketsCtaUrl}
+              onChange={(e) =>
+                setGlobalsForm({ ...globalsForm, ticketsCtaUrl: e.target.value })
+              }
+              placeholder="Floating Tickets URL (global)"
+              className="rounded-2xl border border-white/20 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 md:col-span-2"
+            />
+
+            <button
+              onClick={saveGlobals}
+              disabled={!password || isPending}
+              className="rounded-2xl bg-white px-4 py-3 text-sm font-extrabold tracking-[0.18em] text-black disabled:opacity-50"
+            >
+              SAVE SETTINGS
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input
+              value={globalsForm.ticketsCtaText}
+              onChange={(e) =>
+                setGlobalsForm({ ...globalsForm, ticketsCtaText: e.target.value })
+              }
+              placeholder='Tickets label (e.g. "TICKETS")'
+              className="rounded-2xl border border-white/20 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35"
+            />
+
+            <input
+              value={globalsForm.instagramUrl}
+              onChange={(e) =>
+                setGlobalsForm({ ...globalsForm, instagramUrl: e.target.value })
+              }
+              placeholder="Instagram URL (optional)"
+              className="rounded-2xl border border-white/20 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35"
+            />
+
+            <div className="text-xs text-white/55 md:col-span-2">
+              Priority (Home): <span className="font-bold text-white/75">Globals URL</span>{" "}
+              → fallback to{" "}
+              <span className="font-bold text-white/75">closest upcoming event ticketUrl</span>{" "}
+              → hide CTA.
+            </div>
+          </div>
         </div>
 
         {error ? (

@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={`${inter.variable} ${oswald.variable}`}>
       <body className="min-h-dvh bg-black text-white antialiased">
-        <ReactiveBackground active={true} />
+        {/* <ReactiveBackground active={true} /> */}
         <div className="mx-auto w-full max-w-5xl px-5 pb-20 pt-10 md:pb-10">
           {children}
         </div>

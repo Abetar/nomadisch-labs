@@ -6,7 +6,10 @@ import {
   createEvent,
   listEvents,
   updateEventById,
-  deleteEventById, // ✅ NEW
+  deleteEventById,
+  getGlobals,
+  updateGlobalsById,
+  type UpdateGlobalsInput,
   type UpsertEventInput,
   type EventStatus,
 } from "@/lib/airtable";
@@ -39,6 +42,13 @@ export type AdminEventPayload = {
    * - "https://" => SET attachment
    */
   coverUrl?: string;
+};
+
+export type AdminGlobalsPayload = {
+  password: string;
+  ticketsCtaUrl?: string;   // "" allowed (clear)
+  ticketsCtaText?: string;  // optional
+  instagramUrl?: string;    // optional
 };
 
 function requireAdmin(password: string) {
@@ -161,4 +171,44 @@ export async function adminDeleteEventAction(params: {
   if (params.slug) revalidatePath(`/events/${params.slug}`);
 
   return { ok: true };
+}
+
+/**
+ * ✅ GLOBALS
+ */
+export async function adminGetGlobalsAction(password: string) {
+  requireAdmin(password);
+  return await getGlobals({ revalidateSeconds: 0 });
+}
+
+function cleanGlobalsInput(payload: AdminGlobalsPayload): UpdateGlobalsInput {
+  // We allow "" to clear, so don't convert "" -> undefined here.
+  const ticketsCtaUrl =
+    payload.ticketsCtaUrl === undefined ? undefined : cleanStr(payload.ticketsCtaUrl);
+  const ticketsCtaText =
+    payload.ticketsCtaText === undefined ? undefined : cleanStr(payload.ticketsCtaText);
+  const instagramUrl =
+    payload.instagramUrl === undefined ? undefined : cleanStr(payload.instagramUrl);
+
+  return {
+    ticketsCtaUrl,
+    ticketsCtaText,
+    instagramUrl,
+  };
+}
+
+export async function adminUpdateGlobalsAction(payload: AdminGlobalsPayload) {
+  requireAdmin(payload.password);
+
+  const input = cleanGlobalsInput(payload);
+
+  console.log("[ADMIN GLOBALS UPDATE] keys:", Object.keys(input).filter((k) => (input as any)[k] !== undefined));
+
+  const updated = await updateGlobalsById(input);
+
+  // Globals affect home CTA + floating CTA
+  revalidatePath("/");
+  revalidatePath("/events");
+
+  return updated;
 }
